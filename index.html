@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b6b5c">
+<meta name="theme-color" content="#1e4fa3">
 <title>Catatan Kas Harian</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -13,22 +13,22 @@
 :root{
   --font:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
   --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
-  --bg:#f1f5f4; --surface:#ffffff; --surface2:#e7eeec; --ink:#12231f; --muted:#566963; --line:#d3ddda;
-  --accent:#0b6b5c; --accent-ink:#ffffff;
-  --in:#0f7a55; --out:#b93a26; --sav:#96590a; --debt:#34529a; --onc:#ffffff;
+  --bg:#eef3fa; --surface:#ffffff; --surface2:#e1e9f5; --ink:#0f1d33; --muted:#546a88; --line:#cdd9ea;
+  --accent:#1e4fa3; --accent-ink:#ffffff;
+  --in:#0e7a58; --out:#b93a26; --sav:#96590a; --debt:#6a4bc0; --onc:#ffffff;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0d1714; --surface:#14211d; --surface2:#1b2c27; --ink:#e3eeea; --muted:#92a8a1; --line:#27403a;
-    --accent:#3fc1a8; --accent-ink:#06201a;
-    --in:#4cc79a; --out:#f08a74; --sav:#e2a84c; --debt:#93acea; --onc:#0b1512;
+    --bg:#0a1424; --surface:#102039; --surface2:#172b4a; --ink:#e6eefb; --muted:#93a8c8; --line:#243b61;
+    --accent:#5b9bff; --accent-ink:#04122b;
+    --in:#4cc79a; --out:#f08a74; --sav:#e2a84c; --debt:#b4a2f5; --onc:#08111f;
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0d1714; --surface:#14211d; --surface2:#1b2c27; --ink:#e3eeea; --muted:#92a8a1; --line:#27403a;
-  --accent:#3fc1a8; --accent-ink:#06201a;
-  --in:#4cc79a; --out:#f08a74; --sav:#e2a84c; --debt:#93acea; --onc:#0b1512;
+  --bg:#0a1424; --surface:#102039; --surface2:#172b4a; --ink:#e6eefb; --muted:#93a8c8; --line:#243b61;
+  --accent:#5b9bff; --accent-ink:#04122b;
+  --in:#4cc79a; --out:#f08a74; --sav:#e2a84c; --debt:#b4a2f5; --onc:#08111f;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -192,7 +192,7 @@ body{margin:0}
 [hidden]{display:none!important}
 .who{font-size:12.5px;color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .err.ok{color:var(--in)}
-.overlay{position:fixed;inset:0;z-index:30;background:rgba(8,16,14,.55);display:grid;place-items:center;padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
+.overlay{position:fixed;inset:0;z-index:30;background:rgba(6,14,30,.6);display:grid;place-items:center;padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
 .dlg{width:min(420px,100%);max-height:100%;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px}
 .dlg-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .dlg-h h2{margin:0;font-size:18px;font-weight:700}
