@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1e4fa3">
-<title>Catatan Kas/Keuangan Harian</title>
+<title>Catatan Kas Harian</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
@@ -222,7 +222,7 @@ body{margin:0}
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <h1>Catatan Kas/Keuangan Harian</h1>
+      <h1>Catatan Kas Harian</h1>
       <p>Pemasukan, pengeluaran, tabungan, dan hutang dalam satu tempat</p>
     </div>
     <div class="nav">
@@ -288,7 +288,7 @@ body{margin:0}
       </section>
     </div>
   </div>
-  <footer class="site-foot">&copy; 2026 Catatan Kas/Keuangan Harian &middot; Dibuat oleh Ferdian Ady Sudrajat<br>Hak cipta dilindungi.</footer>
+  <footer class="site-foot">&copy; 2026 Catatan Kas Harian &middot; Dibuat oleh Ferdian<br>Hak cipta dilindungi.</footer>
 </div>
 <div id="authBox" class="overlay" hidden>
   <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="aTitle">
@@ -334,7 +334,7 @@ function addDays(s,k){var p=s.split('-').map(Number);return ymd(new Date(p[0],p[
 
 /* ---------- state ---------- */
 var S=null, hadLocal=false;
-var V={ym:todayStr().slice(0,7),day:todayStr(),tab:'hari',type:'out',q:'',qType:'all',qScope:'month',edit:null,bud:false,hist:null,histBusy:false,histErr:'',histF:'all'};
+var V={ym:todayStr().slice(0,7),day:todayStr(),tab:'hari',type:'out',q:'',qType:'all',qScope:'month',edit:null,bud:false,hist:null,histBusy:false,histErr:'',histF:'all',savMode:'day',planDay:'1',planN:'1'};
 function catList(t){var b=t==='in'?CAT_IN:CAT_OUT,c=(S&&S.cats&&S.cats[t])||[];return b.slice(0,-1).concat(c,b.slice(-1))}
 
 function normalize(o){o.tx=o.tx||[];o.sav=o.sav||[];o.debt=o.debt||[];o.targets=o.targets||{};o.budgets=o.budgets||{};o.cats=o.cats||{};o.cats.in=o.cats.in||[];o.cats.out=o.cats.out||[];return o}
@@ -523,14 +523,26 @@ async function resetPass(){
     say('Tautan atur ulang kata sandi dikirim ke email Anda.',true);
   }catch(err){say(authErr(err&&err.message))}
 }
+var loggingOut=false;
 async function logout(){
-  if(!sb||!user)return;
-  var uid=user.id;
-  if(dirty&&!saving){clearTimeout(saveTimer);await flush()}
-  try{localStorage.removeItem(LS+':'+uid)}catch(e){}
-  await logSession('logout','Keluar dari akun',uid,true);
-  await sb.auth.signOut();
-  toast('Anda sudah keluar');
+  if(!sb||!user||loggingOut)return;
+  loggingOut=true;
+  var uid=user.id,btn=$('#logoutBtn');if(btn)btn.disabled=true;
+  try{
+    if(dirty&&!saving){clearTimeout(saveTimer);await flush()}
+    try{localStorage.removeItem(LS+':'+uid)}catch(e){}
+    await logSession('logout','Keluar dari akun',uid,true);
+    var err=null;
+    try{
+      var r=await Promise.race([sb.auth.signOut({scope:'local'}),new Promise(function(res){setTimeout(function(){res({error:{message:'waktu habis'}})},5000)})]);
+      err=r&&r.error;
+    }catch(e){err=e}
+    if(user){
+      try{Object.keys(localStorage).forEach(function(k){if(/^sb-.*-auth-token/.test(k))localStorage.removeItem(k)})}catch(e){}
+      user=null;onAuth();
+    }
+    toast(err?'Keluar dari perangkat ini (server: '+(err.message||'gagal')+')':'Anda sudah keluar');
+  }finally{loggingOut=false;if(btn)btn.disabled=false}
 }
 document.addEventListener('click',function(e){
   if(e.target.id==='authBox'){closeAuth();return}
@@ -546,7 +558,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!$('#authBo
 
 function onAuth(){
   updateAuthUI();
-  if(user){loadCloud().then(reveal,reveal);flushLog()}
+  if(user){loadCloud().then(reveal,reveal);flushLog();purgeRiwayat()}
   else{var g=loadLocal();S=g||makeSample();locked=false;setStatus();render();reveal()}
 }
 function initAuth(){
@@ -736,6 +748,22 @@ function panelSearch(){
     '<select id="qScope" aria-label="Rentang waktu">'+o('month','Bulan yang dipilih',V.qScope)+o('all','Semua waktu',V.qScope)+'</select></div><div id="searchRes">'+searchRes()+'</div>';
 }
 
+function planUI(){
+  var m=V.savMode==='month',o=function(v,l,c){return '<option value="'+v+'"'+(String(c)===String(v)?' selected':'')+'>'+l+'</option>'};
+  var days='';for(var i=1;i<=28;i++)days+=o(String(i),'Tanggal '+i,V.planDay);days+=o('end','Akhir bulan',V.planDay);
+  return '<div class="tools"><select id="savMode" style="grid-column:1/-1" aria-label="Jadwal tabungan">'+o('day','Jadwal per hari',V.savMode)+o('month','Jadwal per bulan',V.savMode)+'</select>'+
+    (m?'<select id="planDay" aria-label="Tanggal menabung">'+days+'</select><select id="planN" aria-label="Lama jadwal">'+o('1','1 bulan',V.planN)+o('3','3 bulan',V.planN)+o('6','6 bulan',V.planN)+o('12','12 bulan',V.planN)+'</select>':'')+'</div>'+
+    '<div class="plan"><div class="amt"><span>Rp</span><input type="number" id="planAmt" min="1" step="1" inputmode="numeric" placeholder="'+(m?'Per bulan':'Per hari')+'" aria-label="Jumlah tabungan '+(m?'per bulan':'per hari')+'"></div><button class="btn" data-act="plan">'+(m?'Jadwalkan tiap bulan':'Jadwalkan tiap hari')+'</button></div>'+
+    '<p class="note" style="margin:0 0 14px">'+(m?'Membuat satu tabungan per bulan, mulai bulan yang dipilih, pada tanggal pilihan Anda. Tanggal yang sudah punya tabungan dilewati, dan bulan lainnya terlihat saat Anda berpindah bulan.':'Membuat satu tabungan untuk setiap tanggal bulan ini yang belum punya.')+' Centang saat Anda sudah menabung.</p>';
+}
+function addMonth(ds){var p=ds.split('-').map(Number),d=new Date(p[0],p[1]-1,p[2]);d.setMonth(d.getMonth()+1);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function hiddenDebt(d){return !!(d.paid&&d.paidDate&&addMonth(d.paidDate)<=todayStr())}
+async function purgeRiwayat(){
+  if(!user||!sb)return;
+  var k='catatan-kas-purge:'+user.id,t=todayStr();
+  try{if(localStorage.getItem(k)===t)return}catch(e){}
+  try{var r=await sb.rpc('hapus_riwayat_lama');if(!r.error)try{localStorage.setItem(k,t)}catch(e){}}catch(e){}
+}
 function panelSav(rows,tot){
   var target=S.targets[V.ym]||0;
   var pct=target>0?Math.min(100,Math.round(tot.sav/target*100)):0;
@@ -748,26 +776,24 @@ function panelSav(rows,tot){
     '<div class="amt"><span>Rp</span><input type="number" id="target" min="0" step="1" inputmode="numeric" value="'+(target||'')+'" placeholder="0"></div></div>'+
     '<div class="prog" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+pct+'"><i style="width:'+pct+'%"></i></div>'+
     '<div class="prog-t"><span><b class="num">'+rp(tot.sav)+'</b> sudah ditabung'+(target?' dari '+rp(target)+' ('+pct+'%)':'')+'</span><span class="num" style="color:var(--muted)">rencana '+rp(tot.savPlan)+' lagi</span></div></div>'+
-    '<div class="plan"><div class="amt"><span>Rp</span><input type="number" id="planAmt" min="1" step="1" inputmode="numeric" placeholder="Per hari" aria-label="Jumlah tabungan per hari"></div>'+
-    '<button class="btn" data-act="plan">Jadwalkan tiap hari</button></div>'+
-    '<p class="note" style="margin:0 0 14px">Membuat satu tabungan untuk setiap tanggal bulan ini yang belum punya. Centang saat Anda sudah menabung.</p>'+
+    planUI()+
     (items?'<ul class="rows">'+items+'</ul>':'<p class="empty">Belum ada tabungan di bulan ini.</p>');
 }
 
 function panelDebt(){
   var td=todayStr();
-  var open=S.debt.filter(function(d){return !d.paid}),paid=S.debt.filter(function(d){return d.paid});
+  var open=S.debt.filter(function(d){return !d.paid}),paid=S.debt.filter(function(d){return d.paid&&!hiddenDebt(d)});
   var list=open.sort(function(a,b){return a.due<b.due?-1:a.due>b.due?1:0}).concat(paid.sort(function(a,b){return a.paidDate<b.paidDate?1:-1}));
   var dueMonth=sum(open.filter(function(d){return d.due.slice(0,7)===V.ym}));
   var items=list.map(function(d){
     var badge='',sub='';
-    if(d.paid){badge='<span class="badge ok">Lunas</span>';sub='Dibayar '+(d.paidDate?fmtDate(d.paidDate,{day:'numeric',month:'short',year:'numeric'}):'')}
+    if(d.paid){badge='<span class="badge ok">Lunas</span>';sub='Dibayar '+(d.paidDate?fmtDate(d.paidDate,{day:'numeric',month:'short',year:'numeric'})+' · hilang dari daftar '+fmtDate(addMonth(d.paidDate),{day:'numeric',month:'short'}):'')}
     else{sub='Jatuh tempo '+fmtDate(d.due,{day:'numeric',month:'short',year:'numeric'});if(d.due<td)badge='<span class="badge">Lewat jatuh tempo</span>'}
     return rowHTML({kind:'debt',id:d.id,c:'debt',check:'tgl-debt',checked:d.paid,done:d.paid,aria:'Sudah terbayar: '+d.name,title:d.name,badge:badge,sub:sub,amount:d.amount});
   }).join('');
   return '<div class="mini three"><div><span>Belum dibayar</span><b class="num neg">'+rp(sum(open))+'</b></div><div><span>Sudah terbayar</span><b class="num pos">'+rp(sum(paid))+'</b></div><div><span>Jatuh tempo bulan ini</span><b class="num">'+rp(dueMonth)+'</b></div></div>'+
     (items?'<ul class="rows">'+items+'</ul>':'<p class="empty">Belum ada hutang tercatat.</p>')+
-    '<p class="note">Centang saat hutang sudah dibayar. Jumlahnya langsung mengurangi sisa uang di bulan pembayaran, jadi tidak perlu dicatat lagi sebagai pengeluaran.</p>';
+    '<p class="note">Centang saat hutang sudah dibayar. Jumlahnya langsung mengurangi sisa uang di bulan pembayaran, jadi tidak perlu dicatat lagi sebagai pengeluaran. Hutang yang sudah lunas hilang dari daftar ini setelah 1 bulan, tetapi tetap dihitung di ringkasan bulanannya.</p>';
 }
 
 /* ---------- toast ---------- */
@@ -865,6 +891,8 @@ document.addEventListener('change',function(e){
   if(t.id==='dayPick'&&t.value){setDay(t.value);return}
   if(t.id==='qType'||t.id==='qScope'){V[t.id]=t.value;render();return}
   if(t.id==='histF'){V.histF=t.value;render();return}
+  if(t.id==='savMode'){V.savMode=t.value;render();return}
+  if(t.id==='planDay'||t.id==='planN'){V[t.id]=t.value;return}
   if(t.dataset&&t.dataset.bud!==undefined){var bk=t.dataset.bud,bo=S.budgets[bk]||0,bv=Math.max(0,Number(t.value)||0);if(bv)S.budgets[bk]=bv;else delete S.budgets[bk];save();render();if(bo!==bv)logAct('ubah','Anggaran '+bk+': '+(bo?rp(bo):'tanpa batas')+' → '+(bv?rp(bv):'tanpa batas'));return}
   if(t.id==='target'){var ot=S.targets[V.ym]||0,nt=Math.max(0,Number(t.value)||0);S.targets[V.ym]=nt;save();render();if(ot!==nt)logAct('ubah','Target tabungan '+MONTHS[+V.ym.slice(5)-1]+' '+V.ym.slice(0,4)+': '+rp(ot)+' → '+rp(nt));return}
   var a=t.dataset&&t.dataset.act;
@@ -1034,7 +1062,7 @@ function histHTML(){
     var w=new Date(r.waktu).toLocaleString('id-ID',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
     var sub=w+(r.perangkat?' · '+r.perangkat:'')+(r.lokasi?' · '+r.lokasi:'')+(r.ip?' · IP '+r.ip:'');
     return '<li class="row" style="--c:var(--'+(C[r.jenis]||'sav')+')"><span class="pill">'+(L[r.jenis]||r.jenis)+'</span><div class="r-main"><div class="r-title">'+esc(r.ringkas)+'</div><div class="r-sub">'+esc(sub)+'</div></div></li>';
-  }).join('')+'</ul><p class="note">Waktu dicatat oleh server. Lokasi hanya perkiraan dari alamat IP (lewat ipwho.is), jadi bisa meleset, terutama saat memakai data seluler atau VPN. Riwayat tidak bisa diubah atau dihapus dari aplikasi ini.'+(V.hist.length>=300?' Menampilkan 300 terbaru.':'')+'</p>';
+  }).join('')+'</ul><p class="note">Waktu dicatat oleh server. Lokasi hanya perkiraan dari alamat IP (lewat ipwho.is), jadi bisa meleset, terutama saat memakai data seluler atau VPN. Riwayat tidak bisa diubah atau dihapus dari aplikasi ini, dan dihapus otomatis setelah 90 hari.'+(V.hist.length>=300?' Menampilkan 300 terbaru.':'')+'</p>';
 }
 function panelHist(){
   if(user&&sb&&V.hist===null&&!V.histBusy&&!V.histErr)loadHist();
@@ -1049,9 +1077,21 @@ function del(kind,id){
   save();render();logAct('hapus',descItem(kind,it),{item:it});
   toast('Entri dihapus','Urungkan',function(){S[kind].splice(Math.min(i,S[kind].length),0,it);save();render();logAct('pulihkan',descItem(kind,it),{item:it})});
 }
+function planMonthly(amt){
+  var y=+V.ym.slice(0,4),m=+V.ym.slice(5)-1,nm=Number(V.planN)||1,n=0;
+  for(var i=0;i<nm;i++){
+    var dt=new Date(y,m+i,1),yy=dt.getFullYear(),mm=dt.getMonth()+1,dim=daysIn(yy,mm);
+    var day=V.planDay==='end'?dim:Math.min(Number(V.planDay)||1,dim),date=yy+'-'+pad(mm)+'-'+pad(day);
+    if(!S.sav.some(function(x){return x.date===date})){S.sav.push({id:uid(),date:date,amount:amt,note:'Tabungan bulanan',done:false});n++}
+  }
+  save();render();
+  if(n)logAct('tambah','Jadwalkan '+n+' tabungan bulanan '+rp(amt)+' mulai '+MONTHS[m]+' '+y);
+  toast(n?n+' bulan dijadwalkan':'Tanggal itu sudah punya tabungan');
+}
 function plan(){
-  var amt=Number(($('#planAmt')||{}).value);
-  if(!(amt>0)){toast('Isi jumlah tabungan per hari dulu');return}
+  var amt=Number(($('#planAmt')||{}).value),mo=V.savMode==='month';
+  if(!(amt>0)){toast('Isi jumlah tabungan '+(mo?'per bulan':'per hari')+' dulu');return}
+  if(mo){planMonthly(amt);return}
   var n=0;
   byDay(V.ym).forEach(function(r){
     if(!S.sav.some(function(s){return s.date===r.date})){S.sav.push({id:uid(),date:r.date,amount:amt,note:'Tabungan harian',done:false});n++}
